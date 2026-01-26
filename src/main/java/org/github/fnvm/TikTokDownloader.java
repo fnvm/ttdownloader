@@ -6,6 +6,7 @@ import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.methods.send.SendVideo;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
@@ -109,17 +110,24 @@ public class TikTokDownloader extends TelegramLongPollingBot {
             int end = Math.min(i + maxPhotosPerGroup, photoUrls.size());
             List<String> batch = photoUrls.subList(i, end);
 
-            List<InputMedia> mediaGroup = new ArrayList<>();
-            for (String photoUrl : batch) {
-                InputMediaPhoto photo = new InputMediaPhoto();
-                photo.setMedia(photoUrl);
-                mediaGroup.add(photo);
-            }
+            if (batch.size() == 1) {
+                SendPhoto sendPhoto = new SendPhoto();
+                sendPhoto.setChatId(message.getChatId().toString());
+                sendPhoto.setPhoto(new InputFile(batch.getFirst()));
+                execute(sendPhoto);
+            } else {
+                List<InputMedia> mediaGroup = new ArrayList<>();
+                for (String photoUrl : batch) {
+                    InputMediaPhoto photo = new InputMediaPhoto();
+                    photo.setMedia(photoUrl);
+                    mediaGroup.add(photo);
+                }
 
-            SendMediaGroup sendMediaGroup = new SendMediaGroup();
-            sendMediaGroup.setChatId(message.getChatId().toString());
-            sendMediaGroup.setMedias(mediaGroup);
-            execute(sendMediaGroup);
+                SendMediaGroup sendMediaGroup = new SendMediaGroup();
+                sendMediaGroup.setChatId(message.getChatId().toString());
+                sendMediaGroup.setMedias(mediaGroup);
+                execute(sendMediaGroup);
+            }
         }
 
         log.info("Successfully sent {} photos to chat {}", photoUrls.size(), message.getChatId());
