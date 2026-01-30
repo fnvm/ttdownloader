@@ -37,28 +37,22 @@ public class Scraper {
             throw new UrlScrapingException("URL resolution was interrupted", e);
         }
 
-        JsonNode response;
-        ContentType probablyType = UrlResolver.getContentType(link);
+        JsonNode response = getResponse(link, quality, cookies);
 
-        switch (probablyType) {
-            case VIDEO, PHOTO -> {
-                response = getResponse(link, quality);
-                boolean isPhoto = !response.path("images").asText("").isEmpty();
-                if (isPhoto) {
-                    return getPhotoInfo(response);
-                }
-                return getVideoInfo(response);
-            }
-            default -> throw new UrlScrapingException("Unsupported content type");
+        boolean isPhoto = response.hasNonNull("images") && !response.path("images").isEmpty();
+
+        if (isPhoto) {
+            return getPhotoInfo(response);
+        } else {
+            return getVideoInfo(response);
         }
     }
-
 
     private static Content getVideoInfo(JsonNode data) throws UrlScrapingException {
         boolean hasHd = data.hasNonNull("hdplay") && !data.path("hdplay").asText().isEmpty();
 
         String videoPath = hasHd ? "hdplay" : "play";
-        String sizePath  = hasHd ? "hd_size" : "size";
+        String sizePath = hasHd ? "hd_size" : "size";
 
         String videoUrl = data.path(videoPath).asText("");
         if (videoUrl.isEmpty()) {
@@ -72,22 +66,19 @@ public class Scraper {
                 ? QualityPreference.HD
                 : QualityPreference.SD;
 
-        return new VideoContent(
-                videoUrl,
-                sizeBytes,
-                title,
-                actualQuality
-        );
+        return new VideoContent(videoUrl, sizeBytes, title, actualQuality);
     }
 
     private static Content getPhotoInfo(JsonNode data) {
         JsonNode imagesNode = data.path("images");
-
         List<String> photos = new ArrayList<>();
 
         if (imagesNode.isArray()) {
-            imagesNode.forEach(node -> addUrlIfValid(photos, node.asText("")));
-        } else {
+            imagesNode.forEach(node -> {
+                String url = node.asText("");
+                addUrlIfValid(photos, url);
+            });
+        } else if (imagesNode.isTextual()) {
             addUrlIfValid(photos, imagesNode.asText(""));
         }
 
@@ -97,45 +88,54 @@ public class Scraper {
     private static void addUrlIfValid(List<String> photos, String url) {
         if (url != null && !url.isEmpty()) {
             photos.add(url);
+            log.trace("Added photo URL: {}", url);
         }
     }
 
-    private static JsonNode getResponse(String link, QualityPreference quality) throws UrlScrapingException {
-        String qualSet = switch (quality) {
+    private static JsonNode getResponse(String link, QualityPreference quality, String cookies)
+            throws UrlScrapingException {
+
+        String qualityParam = switch (quality) {
             case HD, FULLHD -> "&hd=1";
-            case null, default -> "";
+            case SD -> "";
         };
 
         try {
-            HttpRequest request = HttpRequest.newBuilder()
+            String requestBody = "url=" + URLEncoder.encode(link, StandardCharsets.UTF_8) + qualityParam;
+
+            HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                     .uri(URI.create("https://tikwm.com/api/"))
                     .header("Content-Type", "application/x-www-form-urlencoded")
-                    .POST(HttpRequest.BodyPublishers.ofString(
-                            "url="
-                                    + URLEncoder.encode(link, StandardCharsets.UTF_8)
-                                    + qualSet))
-                    .build();
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBody));
 
+            HttpRequest request = requestBuilder.build();
             HttpClient client = HttpClientService.getClient();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
             ObjectMapper mapper = new ObjectMapper();
             JsonNode root = mapper.readTree(response.body());
 
-            if (root.path("code").asInt() != 0) {
-                throw new UrlScrapingException("Failed to get response");
+            int code = root.path("code").asInt(-1);
+            if (code != 0) {
+                String message = root.path("msg").asText("Unknown error");
+                log.error("API returned error code {}: {}", code, message);
+                throw new UrlScrapingException("API error: " + message);
             }
 
-            return root.path("data");
+            JsonNode dataNode = root.path("data");
+            if (dataNode.isMissingNode()) {
+                throw new UrlScrapingException("Response missing data field");
+            }
+
+            return dataNode;
+
         } catch (IOException e) {
             log.error("Failed to read response: {}", e.getMessage(), e);
             throw new UrlScrapingException("Failed to read response", e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            log.error("Failed to send request: {}", e.getMessage(), e);
-            throw new UrlScrapingException("Failed to send request", e);
+            log.error("Request was interrupted: {}", e.getMessage(), e);
+            throw new UrlScrapingException("Request was interrupted", e);
         }
-
     }
-
 }
