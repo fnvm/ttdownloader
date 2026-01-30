@@ -2,10 +2,7 @@ package org.github.fnvm.scraper;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.github.fnvm.data.Content;
-import org.github.fnvm.data.ContentType;
-import org.github.fnvm.data.PhotoInfo;
-import org.github.fnvm.data.VideoInfo;
+import org.github.fnvm.data.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,7 +20,7 @@ import java.util.List;
 public class Scraper {
     private static final Logger log = LoggerFactory.getLogger(Scraper.class);
 
-    public static Content getContent(String link, boolean hd) throws UrlScrapingException {
+    public static Content getContent(String link, QualityPreference quality, String cookies) throws UrlScrapingException {
         try {
             link = (UrlResolver.isShortLink(link))
                     ? UrlResolver.resolveShortUrl(link)
@@ -45,7 +42,7 @@ public class Scraper {
 
         switch (probablyType) {
             case VIDEO, PHOTO -> {
-                response = getResponse(link, hd);
+                response = getResponse(link, quality);
                 boolean isPhoto = !response.path("images").asText("").isEmpty();
                 if (isPhoto) {
                     return getPhotoInfo(response);
@@ -58,17 +55,29 @@ public class Scraper {
 
 
     private static Content getVideoInfo(JsonNode data) throws UrlScrapingException {
-        String videoPath = "play";
-        boolean hasHd = !data.path("hdplay").asText("").isEmpty();
-        if (hasHd) videoPath = "hdplay";
+        boolean hasHd = data.hasNonNull("hdplay") && !data.path("hdplay").asText().isEmpty();
+
+        String videoPath = hasHd ? "hdplay" : "play";
+        String sizePath  = hasHd ? "hd_size" : "size";
 
         String videoUrl = data.path(videoPath).asText("");
-
         if (videoUrl.isEmpty()) {
             throw new UrlScrapingException("Video URL is missing");
         }
 
-        return new VideoInfo(videoUrl);
+        long sizeBytes = data.path(sizePath).asLong(0);
+        String title = data.path("title").asText("");
+
+        QualityPreference actualQuality = hasHd
+                ? QualityPreference.HD
+                : QualityPreference.SD;
+
+        return new VideoContent(
+                videoUrl,
+                sizeBytes,
+                title,
+                actualQuality
+        );
     }
 
     private static Content getPhotoInfo(JsonNode data) {
@@ -82,7 +91,7 @@ public class Scraper {
             addUrlIfValid(photos, imagesNode.asText(""));
         }
 
-        return new PhotoInfo(photos);
+        return new PhotoContent(photos);
     }
 
     private static void addUrlIfValid(List<String> photos, String url) {
@@ -91,7 +100,12 @@ public class Scraper {
         }
     }
 
-    private static JsonNode getResponse(String link, boolean hd) throws UrlScrapingException {
+    private static JsonNode getResponse(String link, QualityPreference quality) throws UrlScrapingException {
+        String qualSet = switch (quality) {
+            case HD, FULLHD -> "&hd=1";
+            case null, default -> "";
+        };
+
         try {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create("https://tikwm.com/api/"))
@@ -99,7 +113,7 @@ public class Scraper {
                     .POST(HttpRequest.BodyPublishers.ofString(
                             "url="
                                     + URLEncoder.encode(link, StandardCharsets.UTF_8)
-                                    + (hd ? "&hd=1" : "")))
+                                    + qualSet))
                     .build();
 
             HttpClient client = HttpClientService.getClient();
