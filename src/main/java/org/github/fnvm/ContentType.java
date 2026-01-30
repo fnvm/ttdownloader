@@ -2,6 +2,7 @@ package org.github.fnvm;
 
 public enum ContentType {
     VIDEO,
-    PHOTOS,
+    PHOTO,
+    PROFILE,
     BLANK
 }
