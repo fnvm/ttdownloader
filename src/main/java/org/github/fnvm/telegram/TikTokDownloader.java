@@ -1,13 +1,20 @@
 package org.github.fnvm.telegram;
 
-import org.github.fnvm.data.*;
-import org.github.fnvm.scraper.Scraper;
+import org.github.fnvm.data.Content;
+import org.github.fnvm.data.PhotoContent;
+import org.github.fnvm.data.QualityPreference;
+import org.github.fnvm.data.VideoContent;
+import org.github.fnvm.scraper.ContentService;
 import org.github.fnvm.scraper.UrlScrapingException;
 import org.github.fnvm.telegram.profile.UserProfileManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
-import org.telegram.telegrambots.meta.api.methods.send.*;
+import org.telegram.telegrambots.meta.TelegramBotsApi;
+import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
+import org.telegram.telegrambots.meta.api.methods.send.SendVideo;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
@@ -15,7 +22,6 @@ import org.telegram.telegrambots.meta.api.objects.media.InputMedia;
 import org.telegram.telegrambots.meta.api.objects.media.InputMediaPhoto;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
-import org.telegram.telegrambots.meta.TelegramBotsApi;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -116,7 +122,7 @@ public class TikTokDownloader extends TelegramLongPollingBot {
                     ? profileManager.getCookies(userId).orElse(null)
                     : null;
 
-            Content content = Scraper.getContent(url, quality, cookies);
+            Content content = ContentService.getContent(url, quality, cookies);
             sendContent(chatId, content);
 
         } catch (UrlScrapingException e) {
