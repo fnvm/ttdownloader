@@ -1,7 +1,11 @@
-package org.github.fnvm;
+package org.github.fnvm.scraper;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.github.fnvm.data.Content;
+import org.github.fnvm.data.ContentType;
+import org.github.fnvm.data.PhotoInfo;
+import org.github.fnvm.data.VideoInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,15 +18,12 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-
-import static org.github.fnvm.ContentType.*;
 
 public class Scraper {
     private static final Logger log = LoggerFactory.getLogger(Scraper.class);
 
-    public static ContentResult getContent(String link, boolean hd) throws UrlScrapingException {
+    public static Content getContent(String link, boolean hd) throws UrlScrapingException {
         try {
             link = (UrlResolver.isShortLink(link))
                     ? UrlResolver.resolveShortUrl(link)
@@ -39,90 +40,39 @@ public class Scraper {
             throw new UrlScrapingException("URL resolution was interrupted", e);
         }
 
-        switch (getContentType(link)) {
-            case VIDEO -> {
-                List<String> content = getDirectVideoLink(link, hd);
-                return new ContentResult(content, VIDEO);
-            }
-            case PHOTO -> {
-                List<String> content = getPhotoLinks(link);
-                return new ContentResult(content, PHOTO);
-            }
-            default -> {
-                return new ContentResult(Collections.emptyList(), BLANK);
-            }
-        }
+        JsonNode response;
+        ContentType probablyType = UrlResolver.getContentType(link);
 
+        switch (probablyType) {
+            case VIDEO, PHOTO -> {
+                response = getResponse(link, hd);
+                boolean isPhoto = !response.path("images").asText("").isEmpty();
+                if (isPhoto) {
+                    return getPhotoInfo(response);
+                }
+                return getVideoInfo(response);
+            }
+            default -> throw new UrlScrapingException("Unsupported content type");
+        }
     }
 
 
-    /**
-     * Heuristically infers the content type from the link.
-     * The result is not guaranteed to be accurate and may be incorrect,
-     * particularly for story content.
-     */
-    private static ContentType getContentType(String link) throws UrlScrapingException {
-        if (link == null || link.isBlank()) {
-            throw new UrlScrapingException("Invalid URL");
-        }
-
-        String cleanLink = link.trim();
-
-        int queryIndex = cleanLink.indexOf('?');
-        if (queryIndex != -1) {
-            cleanLink = cleanLink.substring(0, queryIndex);
-        }
-
-        if (cleanLink.contains("/photo/")) {
-            return ContentType.PHOTO;
-        }
-
-        // 1) https://www.tiktok.com/@username
-        // 2) @username
-        // 3) username
-        if (isProfileLink(cleanLink)) {
-            return ContentType.PROFILE;
-        }
-
-        return ContentType.VIDEO;
-    }
-
-    private static boolean isProfileLink(String value) {
-        if (value.matches("^https?://(www\\.)?tiktok\\.com/@[^/]+$")) {
-            return true;
-        }
-
-        if (value.matches("^@[^/]+$")) {
-            return true;
-        }
-
-        return value.matches("^[a-zA-Z0-9._]+$");
-    }
-
-    private static List<String> getDirectVideoLink(String link, boolean hd) throws UrlScrapingException {
-        JsonNode data = getResponse(link, hd);
+    private static Content getVideoInfo(JsonNode data) throws UrlScrapingException {
         String videoPath = "play";
-        if (hd) {
-            boolean hasHd = !data.path("hdplay").asText("").isEmpty();
-            if (hasHd) videoPath = "hdplay";
-        }
+        boolean hasHd = !data.path("hdplay").asText("").isEmpty();
+        if (hasHd) videoPath = "hdplay";
+
         String videoUrl = data.path(videoPath).asText("");
 
         if (videoUrl.isEmpty()) {
-            log.warn("Video URL is empty for link: {}", link);
-            return Collections.emptyList();
+            throw new UrlScrapingException("Video URL is missing");
         }
 
-        return List.of(videoUrl);
+        return new VideoInfo(videoUrl);
     }
 
-    private static List<String> getPhotoLinks(String link) throws UrlScrapingException {
-        JsonNode data = getResponse(link, true);
+    private static Content getPhotoInfo(JsonNode data) {
         JsonNode imagesNode = data.path("images");
-
-        if (imagesNode.isMissingNode() || imagesNode.isNull()) {
-            return Collections.emptyList();
-        }
 
         List<String> photos = new ArrayList<>();
 
@@ -132,7 +82,7 @@ public class Scraper {
             addUrlIfValid(photos, imagesNode.asText(""));
         }
 
-        return photos;
+        return new PhotoInfo(photos);
     }
 
     private static void addUrlIfValid(List<String> photos, String url) {

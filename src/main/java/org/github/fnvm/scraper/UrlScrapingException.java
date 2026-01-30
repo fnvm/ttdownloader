@@ -1,4 +1,4 @@
-package org.github.fnvm;
+package org.github.fnvm.scraper;
 
 public class UrlScrapingException extends Exception {
     public UrlScrapingException(String message) {

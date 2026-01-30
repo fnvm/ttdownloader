@@ -1,4 +1,4 @@
-package org.github.fnvm;
+package org.github.fnvm.data;
 
 public enum ContentType {
     VIDEO,

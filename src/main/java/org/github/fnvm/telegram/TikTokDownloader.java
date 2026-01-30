@@ -1,5 +1,7 @@
-package org.github.fnvm;
+package org.github.fnvm.telegram;
 
+import org.github.fnvm.scraper.Scraper;
+import org.github.fnvm.scraper.UrlScrapingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -19,8 +21,8 @@ import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.github.fnvm.ContentType.BLANK;
-import static org.github.fnvm.ContentType.VIDEO;
+import static org.github.fnvm.data.ContentType.BLANK;
+import static org.github.fnvm.data.ContentType.VIDEO;
 
 public class TikTokDownloader extends TelegramLongPollingBot {
     private static final Logger log = LoggerFactory.getLogger(TikTokDownloader.class);

@@ -1,4 +1,4 @@
-package org.github.fnvm;
+package org.github.fnvm.scraper;
 
 import java.net.http.HttpClient;
 
