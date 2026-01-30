@@ -205,18 +205,18 @@ public class TikTokDownloader extends TelegramLongPollingBot {
         String help =   """
                         TikTok Downloader Bot
                 
-                        https://vt.tiktok.com/xxxxxxxx/ — download in SD
-                        https://vt.tiktok.com/xxxxxxxx/ hd — download in HD
-                        https://vt.tiktok.com/xxxxxxxx/ fullhd — download in Full HD (requires session cookies)
+                        https://vt.tiktok.com/xxxxxxxx/
+                        https://vt.tiktok.com/xxxxxxxx/ hd
+                        https://vt.tiktok.com/xxxxxxxx/ fullhd (requires session cookies)
                 
                         Or use commands:
                         • /get <link>
                         • /gethd <link>
                         • /getfull <link>
                 
-                        Other commands:
+                        Other:
                         • /setcookie <sessionid> — set cookies required for Full HD downloads
-                          Log in via a browser and extract the sessionid cookie
+                          Log in via a browser and extract the 'sessionid' cookie
                         • /viewcookie — view current cookies
                         • /deletecookie — delete cookies
                         """;

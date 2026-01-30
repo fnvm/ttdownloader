@@ -25,27 +25,27 @@ public class UserProfileManager {
         loadProfiles();
     }
 
-    public UserProfile getOrCreateProfile(Long userId) {
+    public synchronized UserProfile getOrCreateProfile(Long userId) {
         return profiles.computeIfAbsent(userId, UserProfile::new);
     }
 
-    public void setCookies(Long userId, String cookies) {
+    public synchronized void setCookies(Long userId, String cookies) {
         UserProfile profile = getOrCreateProfile(userId);
         profile.setCookies(cookies);
         saveProfiles();
         log.info("Cookies set for user {}", userId);
     }
 
-    public Optional<String> getCookies(Long userId) {
+    public synchronized Optional<String> getCookies(Long userId) {
         return Optional.ofNullable(profiles.get(userId))
-                .flatMap(UserProfile::getCookies);
+                .flatMap(UserProfile::getCookiesOptional);
     }
 
-    public boolean hasCookies(Long userId) {
+    public synchronized boolean hasCookies(Long userId) {
         return getCookies(userId).isPresent();
     }
 
-    public void deleteCookies(Long userId) {
+    public synchronized void deleteCookies(Long userId) {
         Optional.ofNullable(profiles.get(userId))
                 .ifPresent(profile -> {
                     profile.clearCookies();
@@ -54,7 +54,7 @@ public class UserProfileManager {
                 });
     }
 
-    private void loadProfiles() {
+    private synchronized void loadProfiles() {
         if (!Files.exists(PROFILES_FILE)) {
             log.info("Profiles file not found, starting with empty profiles");
             return;
@@ -69,25 +69,55 @@ public class UserProfileManager {
             if (data != null && data.getProfiles() != null) {
                 profiles.putAll(data.getProfiles());
                 log.info("Loaded {} user profiles", profiles.size());
+
+                profiles.forEach((userId, profile) ->
+                        log.debug("Loaded profile for user {}: has cookies = {}",
+                                userId, profile.getCookiesOptional().isPresent())
+                );
             }
         } catch (IOException e) {
-            log.error("Failed to load profiles", e);
+            log.error("Failed to load profiles: {}", e.getMessage(), e);
+            backupCorruptedFile();
         }
     }
 
-    private void saveProfiles() {
+    private synchronized void saveProfiles() {
         try {
-            ProfilesData data = new ProfilesData(profiles);
-            OBJECT_MAPPER.writeValue(PROFILES_FILE.toFile(), data);
+            ProfilesData data = new ProfilesData(new HashMap<>(profiles));
+
+            Path tempFile = Path.of(PROFILES_FILE + ".tmp");
+            OBJECT_MAPPER.writeValue(tempFile.toFile(), data);
+
+            Files.move(
+                    tempFile,
+                    PROFILES_FILE,
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                    java.nio.file.StandardCopyOption.ATOMIC_MOVE
+            );
+
+            log.debug("Saved {} user profiles", profiles.size());
         } catch (IOException e) {
-            log.error("Failed to save profiles", e);
+            log.error("Failed to save profiles: {}", e.getMessage(), e);
         }
     }
 
-    private static class ProfilesData {
+    private void backupCorruptedFile() {
+        try {
+            if (Files.exists(PROFILES_FILE)) {
+                Path backup = Path.of("user_profiles.json.backup." + System.currentTimeMillis());
+                Files.copy(PROFILES_FILE, backup);
+                log.info("Created backup of corrupted file: {}", backup);
+            }
+        } catch (IOException e) {
+            log.error("Failed to backup corrupted file: {}", e.getMessage());
+        }
+    }
+
+    public static class ProfilesData {
         private Map<Long, UserProfile> profiles;
 
         public ProfilesData() {
+            this.profiles = new HashMap<>();
         }
 
         public ProfilesData(Map<Long, UserProfile> profiles) {

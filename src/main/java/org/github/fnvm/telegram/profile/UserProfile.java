@@ -1,28 +1,43 @@
 package org.github.fnvm.telegram.profile;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.github.fnvm.data.QualityPreference;
 
 import java.util.Optional;
 
 public class UserProfile {
-    private final Long userId;
+    private Long userId;
     private String cookies;
-    private QualityPreference defaultQuality = QualityPreference.SD;
+    private QualityPreference defaultQuality;
+
+    public UserProfile() {
+        this.defaultQuality = QualityPreference.SD;
+    }
 
     public UserProfile(Long userId) {
         this.userId = userId;
+        this.defaultQuality = QualityPreference.SD;
     }
 
     public Long getUserId() {
         return userId;
     }
 
-    public Optional<String> getCookies() {
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
+
+    public String getCookies() {
+        return cookies;
+    }
+
+    @JsonIgnore
+    public Optional<String> getCookiesOptional() {
         return Optional.ofNullable(cookies);
     }
 
     public void setCookies(String cookies) {
-        this.cookies = cookies != null && !cookies.isBlank() ? cookies.trim() : null;
+        this.cookies = (cookies != null && !cookies.isBlank()) ? cookies.trim() : null;
     }
 
     public void clearCookies() {
@@ -30,7 +45,7 @@ public class UserProfile {
     }
 
     public QualityPreference getDefaultQuality() {
-        return defaultQuality;
+        return defaultQuality != null ? defaultQuality : QualityPreference.SD;
     }
 
     public void setDefaultQuality(QualityPreference quality) {
