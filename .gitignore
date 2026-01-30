@@ -3,6 +3,7 @@ logs/
 out/
 test/
 token/
+user_profiles.json
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/

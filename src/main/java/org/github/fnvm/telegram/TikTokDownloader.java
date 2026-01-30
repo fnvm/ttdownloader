@@ -202,23 +202,25 @@ public class TikTokDownloader extends TelegramLongPollingBot {
     }
 
     private void sendHelp(Long chatId) {
-        String help = """
-                TikTok Downloader Bot
-              
-                https://vt.tiktok.com/xxxxxxxx/ —> скачать в SD
-                https://vt.tiktok.com/xxxxxxxx/ hd —> скачать в HD
-                https://vt.tiktok.com/xxxxxxxx/ fullhd —> скачать в FullHD (необходимы куки сессии)
-                Или:
-                • /get <ссылка>
-                • /gethd <ссылка>
-                • /getfull <ссылка>
+        String help =   """
+                        TikTok Downloader Bot
                 
-                Другие команды:
-                • /setcookie <sessionid> — установить cookies для получения fullhd.
-                Залогиниться в браузере -> найти куки sessionid
-                • /viewcookie — посмотреть текущие куки
-                • /deletecookie — удалить куки
-                """;
+                        https://vt.tiktok.com/xxxxxxxx/ — download in SD
+                        https://vt.tiktok.com/xxxxxxxx/ hd — download in HD
+                        https://vt.tiktok.com/xxxxxxxx/ fullhd — download in Full HD (requires session cookies)
+                
+                        Or use commands:
+                        • /get <link>
+                        • /gethd <link>
+                        • /getfull <link>
+                
+                        Other commands:
+                        • /setcookie <sessionid> — set cookies required for Full HD downloads
+                          Log in via a browser and extract the sessionid cookie
+                        • /viewcookie — view current cookies
+                        • /deletecookie — delete cookies
+                        """;
+
         sendMessage(chatId, help);
     }
 
@@ -239,9 +241,8 @@ public class TikTokDownloader extends TelegramLongPollingBot {
 
 
     static void main() throws Exception {
-        String token = System.getenv("TELEGRAM_BOT_TOKEN");
         TelegramBotsApi botsApi = new TelegramBotsApi(DefaultBotSession.class);
-        botsApi.registerBot(new TikTokDownloader(token));
+        botsApi.registerBot(new TikTokDownloader(""));
         log.info("Bot started successfully!");
     }
 }

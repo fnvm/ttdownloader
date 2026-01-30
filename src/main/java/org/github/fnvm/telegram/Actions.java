@@ -10,21 +10,14 @@ public class Actions {
     );
 
     public static Action parse(String text) {
-        if (text == null || text.isBlank()) {
-            return Action.unsupported();
-        }
-
-        text = text.trim();
-
         if (text.startsWith("/")) {
             return parseCommand(text);
         }
 
-        if (TIKTOK_URL_PATTERN.matcher(text).matches()) {
-            return new Action(GET_SD, text);
-        }
-
         String[] parts = text.split("\\s+", 2);
+        if (TIKTOK_URL_PATTERN.matcher(text).matches() && parts.length == 1) {
+            return new Action(GET_SD, parts[0]);
+        }
         if (parts.length == 2 && TIKTOK_URL_PATTERN.matcher(parts[0]).matches()) {
             return parseUrlWithQuality(parts[0], parts[1]);
         }
