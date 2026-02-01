@@ -30,7 +30,7 @@ public class ContentService {
             throw new UrlScrapingException("URL resolution was interrupted", e);
         }
 
-        JsonNode response = DirectScraper.getResponse(link, quality);
+        JsonNode response = DirectPostProvider.getResponse(link, quality);
 
         boolean isPhoto = response.hasNonNull("images") && !response.path("images").isEmpty();
 

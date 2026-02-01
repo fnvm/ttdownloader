@@ -23,7 +23,6 @@ public class FlaresolverrService {
         try {
             String requestBody = objectMapper.writeValueAsString(request);
 
-
             HttpRequest requestToFlaresolverr = HttpRequest.newBuilder()
                     .uri(URI.create(DEFAULT_FLARESOLVERR_ENDPOINT))
                     .header("Content-Type", "application/json")
@@ -33,12 +32,23 @@ public class FlaresolverrService {
             try (HttpClient client = HttpClient.newHttpClient()) {
                 HttpResponse<String> response = client.send(requestToFlaresolverr, HttpResponse.BodyHandlers.ofString());
 
-                log.info("Response status: {}", response.statusCode());
-                return objectMapper.readTree(response.body());
+                String responseBody = response.body();
+
+                if (responseBody.contains("<pre>") && responseBody.contains("</pre>")) {
+                    int start = responseBody.indexOf("<pre>") + 5;
+                    int end = responseBody.indexOf("</pre>");
+                    String jsonContent = responseBody.substring(start, end);
+                    jsonContent = jsonContent.replace("\\\"", "\"")
+                            .replace("\\\\", "\\");
+
+                    return objectMapper.readTree(jsonContent);
+                } else {
+                    return objectMapper.readTree(responseBody);
+                }
             }
         } catch (IOException | InterruptedException e) {
-            log.error("Error during FlareSolverr request", e);
-            throw new UrlScrapingException("Error during FlareSolverr request");
+            log.error("Error during Flaresolverr request", e);
+            throw new UrlScrapingException("Error during Flaresolverr request");
         }
     }
 

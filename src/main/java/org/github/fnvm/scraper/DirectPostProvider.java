@@ -14,8 +14,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 
-public class DirectScraper {
-    private static final Logger log = LoggerFactory.getLogger(DirectScraper.class);
+public class DirectPostProvider {
+    private static final Logger log = LoggerFactory.getLogger(DirectPostProvider.class);
 
     public static JsonNode getResponse(String link, QualityPreference quality)
             throws UrlScrapingException {
@@ -29,9 +29,9 @@ public class DirectScraper {
         };
 
         try {
-            String requestBody = "url=" + URLEncoder.encode(link, StandardCharsets.UTF_8) + qualityParam;
+            var requestBody = "url=" + URLEncoder.encode(link, StandardCharsets.UTF_8) + qualityParam;
 
-            HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
+            var requestBuilder = HttpRequest.newBuilder()
                     .uri(URI.create("https://tikwm.com/api/"))
                     .header("Content-Type", "application/x-www-form-urlencoded")
                     .POST(HttpRequest.BodyPublishers.ofString(requestBody));
@@ -40,7 +40,7 @@ public class DirectScraper {
             HttpClient client = HttpClientService.getClient();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-            ObjectMapper mapper = new ObjectMapper();
+            var mapper = new ObjectMapper();
             JsonNode root = mapper.readTree(response.body());
 
             int code = root.path("code").asInt(-1);
