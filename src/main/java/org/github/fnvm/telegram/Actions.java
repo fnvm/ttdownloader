@@ -43,7 +43,7 @@ public class Actions {
 
     private static Action parseSetCookie(String[] parts) {
         if (parts.length < 2) {
-            return Action.unsupported();
+            return new Action(SET_COOKIE, "");
         }
         return new Action(SET_COOKIE, parts[1]);
     }

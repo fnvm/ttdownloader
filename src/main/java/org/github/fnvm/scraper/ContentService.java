@@ -30,10 +30,11 @@ public class ContentService {
             throw new UrlScrapingException("URL resolution was interrupted", e);
         }
 
+        if (quality == QualityPreference.FULLHD) return handleFullHd(link, cookies);
+
         JsonNode response = DirectPostProvider.getResponse(link, quality);
 
         boolean isPhoto = response.hasNonNull("images") && !response.path("images").isEmpty();
-
         if (isPhoto) {
             return getPhotoInfo(response);
         } else {
@@ -60,6 +61,19 @@ public class ContentService {
                 : QualityPreference.SD;
 
         return new VideoContent(videoUrl, sizeBytes, title, actualQuality);
+    }
+
+    private static Content handleFullHd(String link, String cookie) throws UrlScrapingException {
+        JsonNode response = OriginalPostProvider.getResponse(link, cookie);
+        JsonNode info = response
+                .path("data")
+                .path("detail");
+
+        String title = info.path("title").asText("");
+        long sizeBytes = info.path("size").asLong(0);
+        String url = info.path("play_url").asText("");
+
+        return new VideoContent(url, sizeBytes, title, QualityPreference.FULLHD);
     }
 
     private static Content getPhotoInfo(JsonNode data) {

@@ -34,6 +34,18 @@ public class OriginalPostProvider {
         secondRequest.put("url", "https://www.tikwm.com/api/video/task/result?task_id=" + taskIdNode.asText());
 
         JsonNode secondResponse = FlaresolverrService.getResponse(secondRequest);
+
+        JsonNode playUrlNode = secondResponse
+                .path("data")
+                .path("detail")
+                .path("play_url");
+
+        if (playUrlNode.isMissingNode()
+                || playUrlNode.isNull()
+                || playUrlNode.asText().isBlank()) {
+            throw new UrlScrapingException("");
+        }
+
         return secondResponse;
     }
 

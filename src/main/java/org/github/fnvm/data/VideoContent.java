@@ -9,7 +9,8 @@ public record VideoContent(
         QualityPreference actualQuality
 ) implements Content {
 
-    private static final long TELEGRAM_MAX_SIZE = 50 * 1024 * 1024; // 50 MB
+    private static final long MB = 1024L * 1024;
+    private static final long TELEGRAM_MAX_SIZE = 50 * MB - 2 * MB;
 
     @Override
     public ContentType getType() {

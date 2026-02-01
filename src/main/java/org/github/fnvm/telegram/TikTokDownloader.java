@@ -82,6 +82,7 @@ public class TikTokDownloader extends TelegramLongPollingBot {
         }
 
         profileManager.setCookies(userId, cookies);
+        sendMessage(chatId, "Куки установлены");
     }
 
     private void handleViewCookie(Long chatId, Long userId) {
@@ -119,8 +120,8 @@ public class TikTokDownloader extends TelegramLongPollingBot {
 
         try {
             String cookies = (quality == QualityPreference.FULLHD)
-                    ? profileManager.getCookies(userId).orElse(null)
-                    : null;
+                    ? profileManager.getCookies(userId).orElse("")
+                    : "";
 
             Content content = ContentService.getContent(url, quality, cookies);
             sendContent(chatId, content);
@@ -147,10 +148,11 @@ public class TikTokDownloader extends TelegramLongPollingBot {
             sendMessage(chatId,
                     String.format(  """
                                     Размер видео: (%s)
-                                    
                                     Прямая ссылка: %s
                                     """,
                             video.getFormattedSize(), video.url()));
+            log.info("Sent {} video ({}) to chat {}",
+                    video.actualQuality(), video.getFormattedSize(), chatId);
             return;
         }
 
