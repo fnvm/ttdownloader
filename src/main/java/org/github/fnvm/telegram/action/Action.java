@@ -1,4 +1,4 @@
-package org.github.fnvm.telegram;
+package org.github.fnvm.telegram.action;
 
 public record Action(ActionType type, String payload, String originalMessage) {
 

@@ -1,4 +1,4 @@
-package org.github.fnvm.telegram;
+package org.github.fnvm.telegram.action;
 
 public enum ActionType {
     SET_COOKIE("Установка cookies"),

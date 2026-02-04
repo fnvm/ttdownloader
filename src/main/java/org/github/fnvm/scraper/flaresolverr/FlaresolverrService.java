@@ -16,7 +16,7 @@ import java.net.http.HttpResponse;
 public class FlaresolverrService {
     private static final Logger log = LoggerFactory.getLogger(FlaresolverrService.class);
 
-    private static final String DEFAULT_FLARESOLVERR_ENDPOINT = "http://localhost:8191/v1";
+    private static final String FLARESOLVERR_ENDPOINT = "http://localhost:8191/v1";
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     public static JsonNode getResponse(ObjectNode request) throws UrlScrapingException {
@@ -24,7 +24,7 @@ public class FlaresolverrService {
             String requestBody = objectMapper.writeValueAsString(request);
 
             HttpRequest requestToFlaresolverr = HttpRequest.newBuilder()
-                    .uri(URI.create(DEFAULT_FLARESOLVERR_ENDPOINT))
+                    .uri(URI.create(FLARESOLVERR_ENDPOINT))
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                     .build();
