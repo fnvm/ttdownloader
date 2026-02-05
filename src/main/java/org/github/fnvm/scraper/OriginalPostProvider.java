@@ -77,6 +77,7 @@ public class OriginalPostProvider {
         HttpRequest.newBuilder()
             .uri(URI.create("https://www.tikwm.com/api/video/task/submit"))
             .header("x-proxy-cookie", "sessionid=" + cookie)
+            .header("Content-Type", "application/x-www-form-urlencoded")
             .POST(HttpRequest.BodyPublishers.ofString(body))
             .build();
 
