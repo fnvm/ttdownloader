@@ -49,11 +49,11 @@ public class Actions {
 
   private static Action parseGetCommand(String[] parts, ActionType type) {
     if (parts.length < 2) {
-      return Action.unsupported("Использование: /get <url>");
+      return Action.unsupported("Usage: /get <url>");
     }
     String url = parts[1].trim();
     if (!TIKTOK_URL_PATTERN.matcher(url).matches()) {
-      return Action.unsupported("Некорректная ссылка");
+      return Action.unsupported("Invalid link");
     }
     return new Action(type, url);
   }
@@ -61,7 +61,7 @@ public class Actions {
   private static Action parseUrlWithQuality(String url, String quality) {
     return switch (quality.toLowerCase()) {
       case "hd" -> new Action(GET_HD, url);
-      case "fullhd", "full", "original" -> new Action(GET_FULLHD, url);
+      case "fullhd", "full", "original", "o" -> new Action(GET_FULLHD, url);
       default -> new Action(GET_SD, url);
     };
   }

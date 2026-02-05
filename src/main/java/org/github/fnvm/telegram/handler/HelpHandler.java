@@ -15,12 +15,12 @@ public class HelpHandler {
 
         https://vt.tiktok.com/xxxxxxxx/
         https://vt.tiktok.com/xxxxxxxx/ hd
-        https://vt.tiktok.com/xxxxxxxx/ fullhd (requires session cookies)
+        https://vt.tiktok.com/xxxxxxxx/ o (fullhd)
 
         Or use commands:
         • /get <link>
         • /gethd <link>
-        • /getfull <link>
+        • /getfull <link> (requires session cookies)
 
         Other:
         • /setcookie <sessionid> — set cookies required for Full HD downloads

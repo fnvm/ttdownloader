@@ -30,16 +30,17 @@ public class CookieHandler {
                 sender.sendMessage(
                     chatId,
                     """
-                        Not set.
-                        Use /setcookie to add it.
-                        To download videos in maximum quality, you must provide a sessionid.
-                        Be careful! Excessive requests may lead to your account being banned.
+                    Not set.
+                    Use /setcookie to add it.
+                    To download videos in maximum quality, you must provide a sessionid.
+                    Be careful! Excessive requests may lead to your account being banned.
                     """));
   }
 
-  public void handleDeleteCookie(Long userId) {
+  public void handleDeleteCookie(Long userId, Long chatId) {
     if (profileManager.hasCookies(userId)) {
       profileManager.deleteCookies(userId);
+      sender.sendMessage(chatId, "Cookies have been removed");
     }
   }
 }
