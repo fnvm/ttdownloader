@@ -20,7 +20,7 @@ import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 public class TikTokDownloader extends TelegramLongPollingBot {
   private static final Logger log = LoggerFactory.getLogger(TikTokDownloader.class);
 
-  private String botName;
+  private static String botName;
   private final UserProfileManager profileManager;
   private final MessageSender messageSender;
   private final HelpHandler helpHandler;
@@ -68,7 +68,7 @@ public class TikTokDownloader extends TelegramLongPollingBot {
       case HELP -> helpHandler.sendHelp(chatId);
       case SET_COOKIE -> cookieHandler.handleSetCookie(chatId, userId, action.payload());
       case VIEW_COOKIE -> cookieHandler.handleViewCookie(chatId, userId);
-      case DELETE_COOKIE -> cookieHandler.handleDeleteCookie(userId);
+      case DELETE_COOKIE -> cookieHandler.handleDeleteCookie(userId, chatId);
       case GET_SD ->
           downloadHandler.handleDownload(chatId, userId, action.payload(), QualityPreference.SD);
       case GET_HD ->
@@ -80,7 +80,7 @@ public class TikTokDownloader extends TelegramLongPollingBot {
     }
   }
   
-  void main() throws Exception {
+  static void main() throws Exception {
     String token = System.getenv("TELEGRAM_BOT_TOKEN");
     String name = System.getenv("TELEGRAM_BOT_NAME");
 
