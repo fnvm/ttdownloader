@@ -61,7 +61,20 @@ public class ContentService {
   }
 
   private static Content handleFullHd(String link, String cookie) throws UrlScrapingException {
-    JsonNode response = OriginalPostProvider.getResponseFlaresolverr(link, cookie);
+
+    JsonNode response = null;
+    boolean success = false;
+    try {
+      response = OriginalPostProvider.getDirectResponse(link, cookie);
+      success = true;
+    } catch (UrlScrapingException e) {
+      log.warn("Error during direct original post request: {}", e.getMessage());
+    }
+
+    if (!success) {
+      response = OriginalPostProvider.getResponseFlaresolverr(link, cookie);
+    }
+
     JsonNode info = response.path("data").path("detail");
 
     String title = info.path("title").asText("");
