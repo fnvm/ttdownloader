@@ -28,15 +28,15 @@ public class ContentSender {
     this.sender = sender;
   }
 
-  public void sendContent(Long chatId, Content content) throws TelegramApiException {
+  public void sendContent(Long chatId, Content content, Integer messageThreadId) throws TelegramApiException {
     switch (content) {
-      case VideoContent video -> sendVideo(chatId, video);
-      case PhotoContent photos -> sendPhotos(chatId, photos);
+      case VideoContent video -> sendVideo(chatId, video, messageThreadId);
+      case PhotoContent photos -> sendPhotos(chatId, photos, messageThreadId);
       default -> {}
     }
   }
 
-  public void sendVideo(Long chatId, VideoContent video) throws TelegramApiException {
+  public void sendVideo(Long chatId, VideoContent video, Integer messageThreadId) throws TelegramApiException {
     if (video.exceedsTelegramLimit()) {
       sender.sendMessage(
           chatId,
@@ -45,7 +45,8 @@ public class ContentSender {
               Size: (%s)
               Link: %s
               """,
-              video.getFormattedSize(), video.url()));
+              video.getFormattedSize(), video.url()),
+          messageThreadId);
       log.info(
           "Sent {} video ({}) to chat {}", video.actualQuality(), video.getFormattedSize(), chatId);
       return;
@@ -54,15 +55,38 @@ public class ContentSender {
     SendVideo sendVideo = new SendVideo();
     sendVideo.setChatId(chatId.toString());
     sendVideo.setVideo(new InputFile(video.url()));
+    if (messageThreadId != null) {
+      sendVideo.setMessageThreadId(messageThreadId);
+    }
 
-    video.getValidTitle().ifPresent(sendVideo::setCaption);
+    video.getValidTitle().ifPresent(title -> {
+      String caption = title.length() > 320 ? title.substring(0, 320) + "..." : title;
+      sendVideo.setCaption(caption);
+    });
 
-    bot.execute(sendVideo);
-    log.info(
-        "Sent {} video ({}) to chat {}", video.actualQuality(), video.getFormattedSize(), chatId);
+    try {
+      bot.execute(sendVideo);
+      log.info(
+          "Sent {} video ({}) to chat {}", video.actualQuality(), video.getFormattedSize(), chatId);
+    } catch (TelegramApiException e) {
+      if (e.getMessage() != null && e.getMessage().contains("failed to get HTTP URL content")) {
+        log.warn("Failed to send video via Telegram, sending direct link instead for chat {}", chatId);
+        sender.sendMessage(
+            chatId,
+            String.format(
+                """
+                Video is too long
+                Link: %s
+                """,
+                video.url()),
+            messageThreadId);
+      } else {
+        throw e;
+      }
+    }
   }
 
-  public void sendPhotos(Long chatId, PhotoContent photos) throws TelegramApiException {
+  public void sendPhotos(Long chatId, PhotoContent photos, Integer messageThreadId) throws TelegramApiException {
     if (photos.isEmpty()) {
       return;
     }
@@ -74,23 +98,26 @@ public class ContentSender {
       List<String> batch = urls.subList(i, end);
 
       if (batch.size() == 1) {
-        sendSinglePhoto(chatId, batch.getFirst());
+        sendSinglePhoto(chatId, batch.getFirst(), messageThreadId);
       } else {
-        sendPhotoGroup(chatId, batch);
+        sendPhotoGroup(chatId, batch, messageThreadId);
       }
     }
 
     log.info("Sent {} photos to chat {}", urls.size(), chatId);
   }
 
-  public void sendSinglePhoto(Long chatId, String url) throws TelegramApiException {
+  public void sendSinglePhoto(Long chatId, String url, Integer messageThreadId) throws TelegramApiException {
     SendPhoto sendPhoto = new SendPhoto();
     sendPhoto.setChatId(chatId.toString());
     sendPhoto.setPhoto(new InputFile(url));
+    if (messageThreadId != null) {
+      sendPhoto.setMessageThreadId(messageThreadId);
+    }
     bot.execute(sendPhoto);
   }
 
-  public void sendPhotoGroup(Long chatId, List<String> urls) throws TelegramApiException {
+  public void sendPhotoGroup(Long chatId, List<String> urls, Integer messageThreadId) throws TelegramApiException {
     List<InputMedia> mediaGroup = new ArrayList<>();
     for (String url : urls) {
       InputMediaPhoto photo = new InputMediaPhoto();
@@ -101,6 +128,9 @@ public class ContentSender {
     SendMediaGroup sendMediaGroup = new SendMediaGroup();
     sendMediaGroup.setChatId(chatId.toString());
     sendMediaGroup.setMedias(mediaGroup);
+    if (messageThreadId != null) {
+      sendMediaGroup.setMessageThreadId(messageThreadId);
+    }
     bot.execute(sendMediaGroup);
   }
 }

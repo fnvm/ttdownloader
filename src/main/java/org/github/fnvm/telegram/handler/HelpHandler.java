@@ -8,7 +8,7 @@ public class HelpHandler {
     this.sender = sender;
   }
 
-  public void sendHelp(Long chatId) {
+  public void sendHelp(Long chatId, Integer messageThreadId) {
     String help =
         """
         TikTok Downloader Bot
@@ -29,6 +29,6 @@ public class HelpHandler {
         • /deletecookie — delete cookies
         """;
 
-    sender.sendMessage(chatId, help);
+    sender.sendMessage(chatId, help, messageThreadId);
   }
 }

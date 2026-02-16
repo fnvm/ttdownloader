@@ -53,33 +53,41 @@ public class TikTokDownloader extends TelegramLongPollingBot {
     String text = message.getText().trim();
     Long chatId = message.getChatId();
     Long userId = message.getFrom().getId();
+    Integer messageThreadId = message.getMessageThreadId();
 
     Action action = Actions.parse(text);
 
     try {
-      handleAction(action, chatId, userId);
+      handleAction(action, chatId, userId, messageThreadId);
     } catch (Exception e) {
       log.error("Error handling action for user {}: {}", userId, e.getMessage(), e);
     }
   }
 
-  private void handleAction(Action action, Long chatId, Long userId) {
+  private void handleAction(Action action, Long chatId, Long userId, Integer messageThreadId) {
     switch (action.type()) {
-      case HELP -> helpHandler.sendHelp(chatId);
-      case SET_COOKIE -> cookieHandler.handleSetCookie(chatId, userId, action.payload());
-      case VIEW_COOKIE -> cookieHandler.handleViewCookie(chatId, userId);
-      case DELETE_COOKIE -> cookieHandler.handleDeleteCookie(userId, chatId);
+      case HELP -> helpHandler.sendHelp(chatId, messageThreadId);
+      case SET_COOKIE ->
+          cookieHandler.handleSetCookie(chatId, userId, action.payload(), messageThreadId);
+      case VIEW_COOKIE -> cookieHandler.handleViewCookie(chatId, userId, messageThreadId);
+      case DELETE_COOKIE -> cookieHandler.handleDeleteCookie(userId, chatId, messageThreadId);
       case GET_SD ->
-          downloadHandler.handleDownload(chatId, userId, action.payload(), QualityPreference.SD);
+          downloadHandler.handleDownload(
+              chatId, userId, action.payload(), QualityPreference.SD, messageThreadId);
       case GET_HD ->
-          downloadHandler.handleDownload(chatId, userId, action.payload(), QualityPreference.HD);
+          downloadHandler.handleDownload(
+              chatId, userId, action.payload(), QualityPreference.HD, messageThreadId);
       case GET_FULLHD ->
           downloadHandler.handleDownload(
-              chatId, userId, action.payload(), QualityPreference.FULLHD);
-      case UNSUPPORTED -> messageSender.sendMessage(chatId, action.originalMessage());
+              chatId, userId, action.payload(), QualityPreference.FULLHD, messageThreadId);
+      case UNSUPPORTED -> {
+        if (action.originalMessage() != null && !action.originalMessage().isBlank()) {
+          messageSender.sendMessage(chatId, action.originalMessage(), messageThreadId);
+        }
+      }
     }
   }
-  
+
   static void main() throws Exception {
     String token = System.getenv("TELEGRAM_BOT_TOKEN");
     String name = System.getenv("TELEGRAM_BOT_NAME");

@@ -24,7 +24,8 @@ public class DownloadHandler {
     this.sender = sender;
   }
 
-  public void handleDownload(Long chatId, Long userId, String url, QualityPreference quality) {
+  public void handleDownload(
+      Long chatId, Long userId, String url, QualityPreference quality, Integer messageThreadId) {
     boolean fullhd = quality == QualityPreference.FULLHD;
     if (fullhd && !profileManager.hasCookies(userId)) {
       sender.sendMessage(
@@ -33,7 +34,8 @@ public class DownloadHandler {
             To download videos in maximum quality, you must provide a sessionid.
             Use /setcookie <sessionid>
             Warning! Excessive requests may lead to your account being banned.
-            """);
+            """,
+          messageThreadId);
       return;
     }
 
@@ -41,14 +43,14 @@ public class DownloadHandler {
       String cookies = (fullhd) ? profileManager.getCookies(userId).orElse("") : "";
 
       Content content = ContentService.getContent(url, quality, cookies);
-      contentSender.sendContent(chatId, content);
+      contentSender.sendContent(chatId, content, messageThreadId);
 
     } catch (UrlScrapingException e) {
       log.error("Scraping failed for user {}: {}", userId, e.getMessage(), e);
-      sender.sendError(chatId, "Failed to send the video");
+      sender.sendError(chatId, "Failed to send the video", messageThreadId);
     } catch (TelegramApiException e) {
       log.error("Telegram API error for user {}: {}", userId, e.getMessage(), e);
-      sender.sendError(chatId, "Failed to perform the action");
+      sender.sendError(chatId, "Failed to perform the action", messageThreadId);
     }
   }
 }
