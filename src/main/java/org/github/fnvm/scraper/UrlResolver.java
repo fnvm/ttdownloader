@@ -14,6 +14,7 @@ public class UrlResolver {
             throws URISyntaxException, IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(new URI(shortLink))
+                .timeout(HttpClientService.REQUEST_TIMEOUT)
                 .method("HEAD", HttpRequest.BodyPublishers.noBody())
                 .build();
 

@@ -13,10 +13,14 @@ import java.net.URLEncoder;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 
 public class OriginalPostProvider {
     private static final Logger log = LoggerFactory.getLogger(OriginalPostProvider.class);
     private static final ObjectMapper mapper = new ObjectMapper();
+
+    private static final int MAX_POLL_ATTEMPTS = 10;
+    private static final Duration POLL_INTERVAL = Duration.ofSeconds(1);
 
     public static JsonNode getDirectResponse(String link, String cookie) throws UrlScrapingException {
 
@@ -39,20 +43,33 @@ public class OriginalPostProvider {
                 throw new UrlScrapingException("Missing task_id");
             }
 
-            JsonNode result = getFunc.get(taskId);
-
-            JsonNode playUrl = result.path("data").path("detail").path("play_url");
-            if (playUrl.isMissingNode() || playUrl.asText().isBlank()) {
-                throw new UrlScrapingException("Missing play_url");
-            }
-
-            return result;
+            return pollForResult(taskId, getFunc);
 
         } catch (UrlScrapingException e) {
             throw e;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new UrlScrapingException("Request was interrupted", e);
         } catch (Exception e) {
             throw new UrlScrapingException("Request failed: " + e.getMessage(), e);
         }
+    }
+
+    private static JsonNode pollForResult(String taskId, GetFunc getFunc) throws Exception {
+        for (int attempt = 1; attempt <= MAX_POLL_ATTEMPTS; attempt++) {
+            JsonNode result = getFunc.get(taskId);
+
+            JsonNode playUrl = result.path("data").path("detail").path("play_url");
+            if (!playUrl.isMissingNode() && !playUrl.asText().isBlank()) {
+                return result;
+            }
+
+            if (attempt < MAX_POLL_ATTEMPTS) {
+                Thread.sleep(POLL_INTERVAL.toMillis());
+            }
+        }
+
+        throw new UrlScrapingException("Timed out waiting for result after " + MAX_POLL_ATTEMPTS + " attempts");
     }
 
     private static JsonNode directSubmit(String link, String cookie)
@@ -62,13 +79,13 @@ public class OriginalPostProvider {
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("https://www.tikwm.com/api/video/task/submit"))
+                .timeout(HttpClientService.REQUEST_TIMEOUT)
                 .header("x-proxy-cookie", "sessionid=" + cookie)
                 .header("Content-Type", "application/x-www-form-urlencoded")
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
 
-        HttpResponse<String> response =
-                HttpClientService.getClient().send(request, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> response = HttpClientService.send(request);
 
         return validateResponse(response.body());
     }
@@ -77,11 +94,11 @@ public class OriginalPostProvider {
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("https://www.tikwm.com/api/video/task/result?task_id=" + taskId))
+                .timeout(HttpClientService.REQUEST_TIMEOUT)
                 .GET()
                 .build();
 
-        HttpResponse<String> response =
-                HttpClientService.getClient().send(request, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> response = HttpClientService.send(request);
 
         return validateResponse(response.body());
     }

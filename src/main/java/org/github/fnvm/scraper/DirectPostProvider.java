@@ -9,7 +9,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
-import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
@@ -30,14 +29,14 @@ public class DirectPostProvider {
         try {
             var requestBody = "url=" + URLEncoder.encode(link, StandardCharsets.UTF_8) + qualityParam;
 
-            var requestBuilder = HttpRequest.newBuilder()
+            HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create("https://tikwm.com/api/"))
+                    .timeout(HttpClientService.REQUEST_TIMEOUT)
                     .header("Content-Type", "application/x-www-form-urlencoded")
-                    .POST(HttpRequest.BodyPublishers.ofString(requestBody));
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                    .build();
 
-            HttpRequest request = requestBuilder.build();
-            HttpClient client = HttpClientService.getClient();
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = HttpClientService.send(request);
 
             var mapper = new ObjectMapper();
             JsonNode root = mapper.readTree(response.body());

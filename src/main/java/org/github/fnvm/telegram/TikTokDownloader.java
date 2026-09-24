@@ -13,11 +13,7 @@ import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 public class TikTokDownloader extends TelegramLongPollingBot {
     private static final Logger log = LoggerFactory.getLogger(TikTokDownloader.class);
@@ -68,6 +64,40 @@ public class TikTokDownloader extends TelegramLongPollingBot {
         log.info("Bot started successfully!");
     }
 
+    private static ExecutorService[] createWorkers(int count) {
+        ExecutorService[] pool = new ExecutorService[count];
+        for (int i = 0; i < count; i++) {
+            int index = i;
+            pool[i] = new ThreadPoolExecutor(
+                    1,
+                    1,
+                    0L,
+                    TimeUnit.MILLISECONDS,
+                    new ArrayBlockingQueue<>(DEFAULT_QUEUE_CAPACITY),
+                    runnable -> {
+                        Thread thread = new Thread(runnable, "update-worker-" + index);
+                        thread.setDaemon(true);
+                        return thread;
+                    },
+                    new ThreadPoolExecutor.AbortPolicy());
+        }
+        return pool;
+    }
+
+    private static int envInt(String name, int defaultValue) {
+        String value = System.getenv(name);
+        if (value == null || value.isBlank()) {
+            return defaultValue;
+        }
+        try {
+            int parsed = Integer.parseInt(value.trim());
+            return parsed > 0 ? parsed : defaultValue;
+        } catch (NumberFormatException e) {
+            log.warn("Invalid value for {}: '{}', using default {}", name, value, defaultValue);
+            return defaultValue;
+        }
+    }
+
     @Override
     public String getBotUsername() {
         return botName;
@@ -106,40 +136,6 @@ public class TikTokDownloader extends TelegramLongPollingBot {
     private void shutdown() {
         for (ExecutorService worker : workers) {
             worker.shutdownNow();
-        }
-    }
-
-    private static ExecutorService[] createWorkers(int count) {
-        ExecutorService[] pool = new ExecutorService[count];
-        for (int i = 0; i < count; i++) {
-            int index = i;
-            pool[i] = new ThreadPoolExecutor(
-                    1,
-                    1,
-                    0L,
-                    TimeUnit.MILLISECONDS,
-                    new ArrayBlockingQueue<>(DEFAULT_QUEUE_CAPACITY),
-                    runnable -> {
-                        Thread thread = new Thread(runnable, "update-worker-" + index);
-                        thread.setDaemon(true);
-                        return thread;
-                    },
-                    new ThreadPoolExecutor.AbortPolicy());
-        }
-        return pool;
-    }
-
-    private static int envInt(String name, int defaultValue) {
-        String value = System.getenv(name);
-        if (value == null || value.isBlank()) {
-            return defaultValue;
-        }
-        try {
-            int parsed = Integer.parseInt(value.trim());
-            return parsed > 0 ? parsed : defaultValue;
-        } catch (NumberFormatException e) {
-            log.warn("Invalid value for {}: '{}', using default {}", name, value, defaultValue);
-            return defaultValue;
         }
     }
 
