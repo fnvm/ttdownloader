@@ -13,8 +13,17 @@ import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+
 public class TikTokDownloader extends TelegramLongPollingBot {
     private static final Logger log = LoggerFactory.getLogger(TikTokDownloader.class);
+
+    private static final int DEFAULT_WORKER_COUNT = 4;
+    private static final int DEFAULT_QUEUE_CAPACITY = 32;
 
     private static String botName;
     private final UserProfileManager profileManager;
@@ -23,8 +32,13 @@ public class TikTokDownloader extends TelegramLongPollingBot {
     private final CookieHandler cookieHandler;
     private final ContentSender contentSender;
     private final DownloadHandler downloadHandler;
+    private final ExecutorService[] workers;
 
     public TikTokDownloader(String token) {
+        this(token, DEFAULT_WORKER_COUNT);
+    }
+
+    public TikTokDownloader(String token, int workerCount) {
         super(token);
         this.profileManager = new UserProfileManager();
         this.messageSender = new MessageSender(this);
@@ -32,6 +46,7 @@ public class TikTokDownloader extends TelegramLongPollingBot {
         this.cookieHandler = new CookieHandler(profileManager, messageSender);
         this.contentSender = new ContentSender(this, messageSender);
         this.downloadHandler = new DownloadHandler(profileManager, contentSender, messageSender);
+        this.workers = createWorkers(Math.max(1, workerCount));
     }
 
     static void main() throws Exception {
@@ -43,9 +58,13 @@ public class TikTokDownloader extends TelegramLongPollingBot {
                     "Environment variables TELEGRAM_BOT_TOKEN or TELEGRAM_BOT_NAME are not set");
         }
 
+        int workerCount = envInt("TELEGRAM_BOT_WORKERS", DEFAULT_WORKER_COUNT);
+
         TelegramBotsApi botsApi = new TelegramBotsApi(DefaultBotSession.class);
         botName = name;
-        botsApi.registerBot(new TikTokDownloader(token));
+        TikTokDownloader bot = new TikTokDownloader(token, workerCount);
+        botsApi.registerBot(bot);
+        Runtime.getRuntime().addShutdownHook(new Thread(bot::shutdown, "bot-shutdown"));
         log.info("Bot started successfully!");
     }
 
@@ -68,10 +87,59 @@ public class TikTokDownloader extends TelegramLongPollingBot {
 
         Action action = Actions.parse(text);
 
+        int workerIndex = Math.floorMod(Long.hashCode(chatId), workers.length);
         try {
-            handleAction(action, chatId, userId, messageThreadId);
-        } catch (Exception e) {
-            log.error("Error handling action for user {}: {}", userId, e.getMessage(), e);
+            workers[workerIndex].execute(() -> {
+                try {
+                    handleAction(action, chatId, userId, messageThreadId);
+                } catch (Exception e) {
+                    log.error("Error handling action for user {}: {}", userId, e.getMessage(), e);
+                }
+            });
+        } catch (RejectedExecutionException e) {
+            log.warn("Update queue is full, rejecting update for user {}", userId);
+            messageSender.sendMessage(
+                    chatId, "The bot is busy right now. Please try again in a moment.", messageThreadId);
+        }
+    }
+
+    private void shutdown() {
+        for (ExecutorService worker : workers) {
+            worker.shutdownNow();
+        }
+    }
+
+    private static ExecutorService[] createWorkers(int count) {
+        ExecutorService[] pool = new ExecutorService[count];
+        for (int i = 0; i < count; i++) {
+            int index = i;
+            pool[i] = new ThreadPoolExecutor(
+                    1,
+                    1,
+                    0L,
+                    TimeUnit.MILLISECONDS,
+                    new ArrayBlockingQueue<>(DEFAULT_QUEUE_CAPACITY),
+                    runnable -> {
+                        Thread thread = new Thread(runnable, "update-worker-" + index);
+                        thread.setDaemon(true);
+                        return thread;
+                    },
+                    new ThreadPoolExecutor.AbortPolicy());
+        }
+        return pool;
+    }
+
+    private static int envInt(String name, int defaultValue) {
+        String value = System.getenv(name);
+        if (value == null || value.isBlank()) {
+            return defaultValue;
+        }
+        try {
+            int parsed = Integer.parseInt(value.trim());
+            return parsed > 0 ? parsed : defaultValue;
+        } catch (NumberFormatException e) {
+            log.warn("Invalid value for {}: '{}', using default {}", name, value, defaultValue);
+            return defaultValue;
         }
     }
 
